@@ -81,6 +81,7 @@ app.post("/register", (req, res) => {
       });
   });
 });
+
 app.post("/login", (req, res) => {
   const userModel = require("./models/UserModel.js");
   const { email, password } = req.body;
@@ -96,6 +97,11 @@ app.post("/login", (req, res) => {
     });
   });
 });
+
+
+
+
+
 
 //api for forget password
 
@@ -482,174 +488,6 @@ app.post("/AdminProfile", (req, res) => {
   }
 });
 
-
-
-// app.put("/funduser", async (req, res) => {
-//   const { amount, email, txId } = req.body;
-
-//   // Validate request body
-//   if (!amount || !email || !txId) {
-//     console.error("Missing required fields");
-//     return res.status(400).json({ msg: "Missing required fields" });
-//   }
-
-//   try {
-//     // Fetch user information
-//     const user = await userModel.findOne({ email: email });
-//     if (!user) {
-//       console.error("User not found");
-//       return res.status(404).json({ msg: "User not found" });
-//     }
-
-//     const userId = user._id;
-
-//     // Update userWallet balance
-//     const updatedWallet = await userWallet.findOneAndUpdate(
-//       { userId: userId },
-//       { $inc: { balance: Number(amount) } },
-//       { new: true }
-//     );
-
-//     if (!updatedWallet) {
-//       console.error("User wallet not found");
-//       // Record failed transaction
-//       const newTransactionFailed = new TxModel({
-//         userId: userId,
-//         txType: "Adminfunding",
-//         txAmount: amount,
-//         txRef: txId,
-//         status: "Failed",
-//       });
-//       await newTransactionFailed.save();
-
-//       return res.status(404).json({ msg: "User wallet not found" });
-//     }
-       
-//      console.log("Wallet updated:", updatedWallet);
-
-//     // Record the transaction
-//     const newTransaction = new TxModel({
-//       userId: userId,
-//       txType: "Adminfunding",
-//       txAmount: amount,
-//       txRef: txId,
-//       status: "success",
-//     });
-
-//     const savedTransaction = await newTransaction.save();
-
-//     console.log("Transaction recorded:", savedTransaction);
-
-//     return res.status(200).json({ msg: updatedWallet, mystatus: "success" });
-//   } catch (error) {
-//     console.error("Error:", error);
-
-//     if (userId) {
-//       // Record failed transaction if userId is available
-//       const newTransactionFailed = new TxModel({
-//         userId: userId,
-//         txType: "Adminfunding",
-//         txAmount: amount,
-//         txRef: txId,
-//         status: "Failed",
-//       });
-//       await newTransactionFailed.save();
-//     }
-
-//     return res
-//       .status(500)
-//       .json({ msg: "Internal Server Error", error: error.message });
-//   }
-// });
-
-
-
-
-
-
-
-// app.put("/funduser", async (req, res) => {
-//   const { amount, email, txId } = req.body;
-
-//   // Validate request body
-//   if (!amount || !email || !txId) {
-//     console.error("Missing required fields");
-//     return res.status(400).json({ msg: "Missing required fields" });
-//   }
-
-//   try {
-//     // Fetch user information
-//     const user = await userModel.findOne({ email: email });
-//     if (!user) {
-//       console.error("User not found");
-//       return res.status(404).json({ msg: "User not found" });
-//     }
-
-//     const userId = user._id;
-
-//     // Update userWallet balance
-//     const updatedWallet = await userWallet.findOneAndUpdate(
-//       { userId: userId },
-//       { $inc: { balance: Number(amount) } },
-//       { new: true }
-//     );
-
-//     if (!updatedWallet) {
-//       console.error("User wallet not found");
-//       // Record failed transaction
-//       const newTransactionFailed = new TxModel({
-//         userId: userId,
-//         txType: "Adminfunding",
-//         txAmount: amount,
-//         txRef: txId,
-//         status: "Failed",
-//       });
-
-//       await newTransactionFailed.save()
-//         .then(() => console.log("Failed transaction recorded"))
-//         .catch(err => console.error("Failed to record transaction:", err));
-
-//       return res.status(404).json({ msg: "User wallet not found" });
-//     }
-       
-//     console.log("Wallet updated:", updatedWallet);
-
-//     // Record the transaction
-//     const newTransaction = new TxModel({
-//       userId: userId,
-//       txType: "Adminfunding",
-//       txAmount: amount,
-//       txRef: txId,
-//       status: "success",
-//     });
-
-//     const savedTransaction = await newTransaction.save();
-
-//     console.log("Transaction recorded:", savedTransaction);
-
-//     return res.status(200).json({ msg: updatedWallet, mystatus: "success" });
-//   } catch (error) {
-//     console.error("Error:", error);
-
-//     if (req.body.email) {
-//       // Record failed transaction if userId is available
-//       const newTransactionFailed = new TxModel({
-//         userId: req.body.email,
-//         txType: "Adminfunding",
-//         txAmount: amount,
-//         txRef: txId,
-//         status: "Failed",
-//       });
-
-//       await newTransactionFailed.save()
-//         .then(() => console.log("Failed transaction recorded"))
-//         .catch(err => console.error("Failed to record transaction:", err));
-//     }
-
-//     return res.status(500).json({ msg: "Internal Server Error", error: error.message });
-//   }
-// });
-
 app.put("/funduser", async (req, res) => {
   const { email, amount, txId, adminEmail } = req.body;
 
@@ -685,7 +523,7 @@ app.put("/funduser", async (req, res) => {
     }
 
     // Record the transaction (Assuming success initially)
-    
+            
 
     // Attempt to save the transaction 
     try {
@@ -718,9 +556,6 @@ app.put("/funduser", async (req, res) => {
     return res.status(500).json({ msg: "Internal Server Error", error: error.message });
   }
 });
-
-
-
 app.get("/balance", (req, res) => {
   axios
     .get(
@@ -741,10 +576,7 @@ app.get("/balance", (req, res) => {
       res.status(500).json({ msg: "Internal Server Error" });
     });
 });
-
-
-
-
+        
 // app.get("/topupuser", (req, res) => {
 //   const service = {
 //     15: "MTN VTU",
@@ -894,71 +726,29 @@ app.get("/topupuser", async (req, res) => {
     console.error("Error: " + error.message);
     return res.status(500).json({ msg: "Internal Server Error" });
   }
+});          
+
+app.get("/AdminTotalTopupup", (req, res) => {
+  const TxModel = require("./models/transactionModel.js");
+  const { txType } = req.query;
+
+  TxModel.find({txType: "Admintopup"}).then((response) => {
+    res.status(200).json({ result: response });
+    console.log(response)
+  });
+});     
+         
+
+app.get("/TotalAdminFunds", (req, res) => {
+
+  const { txType } = req.query;
+  TxModel.find({ txType:"Adminfunding" }).then((response) => {
+    res.status(200).json({ result: response });
+    console.log(response)
+  });
 });
-
-
-
-app.get("/AdminTotalTopupup", async (req, res) => {
-  const { userId } = req.query;
-
-  try {
-    if (!userId) {
-      return res.status(400).json({ msg: "userId parameter is required" });
-    }
-
-    // Find transactions where admin performed top-up for the user
-    const adminTopUpTransactions = await TxModel.find({ userId: userId, txType: "Admintopup" });
-
-    if (!adminTopUpTransactions || adminTopUpTransactions.length === 0) {
-      return res.status(404).json({ msg: "No admin top-up transactions found for the user" });
-    }
-
-    res.status(200).json({ result: adminTopUpTransactions });
-  } catch (error) {
-    console.error("Error fetching admin top-up transactions:", error);
-    res.status(500).json({ msg: "Internal Server Error", error: error.message });
-  }
-});
-
-// app.get("/AdminTotalTopupup", (req, res) => {
-//   const { userId } = req.query;
-
-//   TxModel.find({ userId: userId, txType: "Admintopup" }).then((response) => {
-//     res.status(200).json({ result: response });
-//   });
-// });
-
-
-app.get("/TotalAdminFunds", async (req, res) => {
-  const { userId } = req.query;
-
-  try {
-    if (!userId) {
-      return res.status(400).json({ msg: "Missing userId parameter" });
-    }
-
-    // Find transactions where funds were administered by admin for the user
-    const adminFundsTransactions = await TxModel.find({ userId: userId, txType: "Adminfunding" });
-
-    if (!adminFundsTransactions || adminFundsTransactions.length === 0) {
-      return res.status(404).json({ msg: "No admin funding transactions found for the user" });
-    }
-
-    res.status(200).json({ result: adminFundsTransactions });
-  } catch (error) {
-    console.error("Error fetching admin funds transactions:", error);
-    res.status(500).json({ msg: "Internal Server Error", error: error.message });
-  }
-});
-
-// app.get("/TotalAdminFunds", (req, res) => {
-//   const { userId } = req.query;
-
-//   TxModel.find({ userId: userId, txType: "Adminfunding" }).then((response) => {
-//     res.status(200).json({ result: response });
-//   });
-// });
-
+           
+  
 app.post("/Admin", async (req, res) => {
   const { name, email, phoneNumber, password, role } = req.body;
   const hashPassword = (password) => {
