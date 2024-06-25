@@ -34,6 +34,10 @@ connectDb();
 // create the REST API
 // CRUD- Operation
 
+app.get('/test',(req, res)=>{
+  return res.status(200).json({ message: "APi WOrking!!!" });
+});
+
 app.post("/register", (req, res) => {
   const { fullName, phone, email, password } = req.body;
 
