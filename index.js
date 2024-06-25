@@ -15,11 +15,11 @@ const saltRounds = 10;
 
 const connectDb = require("./database.js");
 const userWallet = require("./models/Wallet.js");
-const AdminTxModel = require("./models/AdminTx.js");
+const TopUpModel = require("./models/Topup.js");
 const AdminWallet = require("./models/AdminWallet.js");
-const AdminTopUpModel = require("./models/Admintopup.js");
 const AdminModel = require("./models/AdminModel.js");
 const userModel = require("./models/UserModel.js");
+const TxModel = require("./models/transactionModel.js");
 
 const app = express();
 const port = process.env.PORT;
@@ -30,7 +30,7 @@ app.use(cors()); //enable the cors policy to all
 
 //connection
 connectDb();
-   
+
 // create the REST API
 // CRUD- Operation
 
@@ -43,16 +43,20 @@ app.post("/register", (req, res) => {
 
   bcrypt.hash(password, saltRounds, (err, hash) => {
     if (err) {
-      return res.status(500).json({ error: "Error hashing password", details: err });
+      return res
+        .status(500)
+        .json({ error: "Error hashing password", details: err });
     }
 
     const newUser = new userModel({ fullName, phone, email, password: hash });
 
-    newUser.save()
+    newUser
+      .save()
       .then((user) => {
         const newWallet = new userWallet({ userId: user._id });
 
-        newWallet.save()
+        newWallet
+          .save()
           .then((wallet) => {
             res.status(200).json({
               msg: "success",
@@ -61,11 +65,15 @@ app.post("/register", (req, res) => {
             });
           })
           .catch((walletError) => {
-            res.status(500).json({ error: "Error creating wallet", details: walletError });
+            res
+              .status(500)
+              .json({ error: "Error creating wallet", details: walletError });
           });
       })
       .catch((userError) => {
-        res.status(500).json({ error: "Error saving user", details: userError });
+        res
+          .status(500)
+          .json({ error: "Error saving user", details: userError });
       });
   });
 });
@@ -276,9 +284,6 @@ app.get("/getWallet", (req, res) => {
 });
 
 app.get("/topup", (req, res) => {
-  const TopUpModel = require("./models/Topup.js");
-  const TxModel = require("./models/transactionModel.js");
-  const userModel = require("./models/UserModel.js");
   const service = {
     15: "MTN VTU",
     6: "GLO",
@@ -308,7 +313,7 @@ app.get("/topup", (req, res) => {
             amount: amount,
             txref: txRef,
             Network: service[network],
-            status: "Success",
+            status: "success",
           }).save();
 
           new TxModel({
@@ -316,7 +321,7 @@ app.get("/topup", (req, res) => {
             txType: "topup",
             txAmount: amount,
             txRef: txRef,
-            status: "Success",
+            status: "success",
           }).save();
           res.status(200).json({ msg: "success" });
         } else {
@@ -362,83 +367,59 @@ app.get("/getTotalFunding", (req, res) => {
     res.status(200).json({ result: response });
   });
 });
-// Admin fund user account
-app.put("/funduser", async (req, res) => {
-  const { amount, email, txId } = req.body;
-  const userModel = require("./models/UserModel.js");
-  const TxModel = require("./models/transactionModel.js");
-  const AdminTxModel = require("./models/AdminTx.js"); 
-  const WalletModel = require("./models/Wallet.js");
-  const AdminWallet = require("./models/AdminWallet.js"); 
 
-  const flw = new Flutterwave(process.env.FLW_PUB_KEY, process.env.FLW_SEC_KEY);
-  const payload = { id: txId };
-
+//Admin
+//GET route to fetch all admins
+app.get("/alladmin", async (req, res) => {
   try {
-    // Verify transaction with Flutterwave
-    const resData = await flw.Transaction.verify(payload);
-
-    if (resData.data.status == "successful") {
-      // Find user by email
-      const user = await userModel.findOne({ email: email });
-      if (!user) {
-        return res.status(404).json({ msg: "User not found" });
-      }
-
-      const userId = user._id;
-
-      // Update user wallet balance
-      const updatedWallet = await WalletModel.findOneAndUpdate(
-        { userId: userId },
-        { $inc: { balance: Number(amount) } },
-        { new: true }
-      );
-
-      // Update admin wallet balance
-      const updatedAdminWallet = await AdminWallet.findOneAndUpdate(
-        { userId: userId },
-        { $inc: { balance: Number(amount) } },
-        { new: true }
-      );
-
-      if (updatedWallet) {
-        // Record the transaction
-        await new TxModel({
-          email: email,
-          userId: userId,
-          txType: "funding",
-          txAmount: amount,
-          txRef: txId,
-          status: "Success",
-        }).save();
-
-        return res.status(200).json({ msg: updatedWallet, mystatus: "Success" });
-      } 
-
-      if (updatedAdminWallet) {
-        // Record the admin transaction
-        await new AdminTxModel({
-          email: email,
-          userId: userId,
-          txType: "AdminFunding",
-          txAmount: amount,
-          txRef: txId,
-          status: "Success",
-        }).save();
-
-        return res.status(200).json({ msg: updatedAdminWallet, mystatus: "Success" });
-      } 
-
-      return res.status(500).json({ msg: "Failed to update wallet balance" });
-    } else {
-      return res.status(400).json({ msg: "Transaction verification failed", data: resData });
-    }
+    const admins = await AdminModel.find();
+    res.status(200).json(admins);
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ msg: "Internal server error" });
+    console.error("Error fetching admins:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
+app.post("/adminlogin", (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ msg: "Email and password are required" });
+  }
+
+  AdminModel.findOne({ email: email })
+    .then((user) => {
+      if (!user) {
+        console.log("User not found for email:", email); // Added logging
+        return res.status(404).json({ msg: "User not found" });
+      }
+
+      bcrypt.compare(password, user.password, function (err, result) {
+        if (err) {
+          console.error("Error comparing passwords:", err); // Added logging
+          return res.status(500).json({ msg: "Error comparing passwords" });
+        }
+
+        if (result === true) {
+          // Login successful, send user details including role in response
+          return res.status(200).json({
+            msg: "Login successful",
+            user: {
+              email: user.email,
+              role: user.role,
+            },
+          });
+        } else {
+          // Invalid password
+          return res.status(401).json({ msg: "Invalid password" });
+        }
+      });
+    })
+    .catch((err) => {
+      console.error("Database error:", err); // Added logging
+      return res.status(500).json({ msg: "Database error", error: err });
+    });
+});
 
 app.get("/adtxhistory", async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
@@ -477,10 +458,360 @@ app.get("/adtxhistory", async (req, res) => {
   }
 });
 
-app.get("/Adtopup", (req, res) => {
-  const AdminTopUpModel = require("./models/Admintopup.js");
-  const AdminTxModel = require("./models/AdminTx.js");
-  const userModel = require("./models/UserModel.js");
+app.post("/AdminProfile", (req, res) => {
+  const AdminModel = require("./models/AdminModel.js");
+  const bcrypt = require("bcrypt");
+
+  const { oldPassword, newPassword, confirmPassword, id } = req.body;
+
+  if (oldPassword === newPassword || newPassword !== confirmPassword) {
+    return res.json({ msg: "password error" });
+  } else {
+    bcrypt
+      .hash(newPassword, 10)
+      .then((hash) => {
+        AdminModel.findByIdAndUpdate(id, { password: hash })
+          .then(() => res.json({ status: "success" })) // No need to send user data back, just status
+          .catch((err) => res.json({ status: err.message })); // Sending error message
+      })
+      .catch((err) => res.json({ status: err.message }));
+  }
+});
+
+
+
+// app.put("/funduser", async (req, res) => {
+//   const { amount, email, txId } = req.body;
+
+//   // Validate request body
+//   if (!amount || !email || !txId) {
+//     console.error("Missing required fields");
+//     return res.status(400).json({ msg: "Missing required fields" });
+//   }
+
+//   try {
+//     // Fetch user information
+//     const user = await userModel.findOne({ email: email });
+//     if (!user) {
+//       console.error("User not found");
+//       return res.status(404).json({ msg: "User not found" });
+//     }
+
+//     const userId = user._id;
+
+//     // Update userWallet balance
+//     const updatedWallet = await userWallet.findOneAndUpdate(
+//       { userId: userId },
+//       { $inc: { balance: Number(amount) } },
+//       { new: true }
+//     );
+
+//     if (!updatedWallet) {
+//       console.error("User wallet not found");
+//       // Record failed transaction
+//       const newTransactionFailed = new TxModel({
+//         userId: userId,
+//         txType: "Adminfunding",
+//         txAmount: amount,
+//         txRef: txId,
+//         status: "Failed",
+//       });
+//       await newTransactionFailed.save();
+
+//       return res.status(404).json({ msg: "User wallet not found" });
+//     }
+       
+//      console.log("Wallet updated:", updatedWallet);
+
+//     // Record the transaction
+//     const newTransaction = new TxModel({
+//       userId: userId,
+//       txType: "Adminfunding",
+//       txAmount: amount,
+//       txRef: txId,
+//       status: "success",
+//     });
+
+//     const savedTransaction = await newTransaction.save();
+
+//     console.log("Transaction recorded:", savedTransaction);
+
+//     return res.status(200).json({ msg: updatedWallet, mystatus: "success" });
+//   } catch (error) {
+//     console.error("Error:", error);
+
+//     if (userId) {
+//       // Record failed transaction if userId is available
+//       const newTransactionFailed = new TxModel({
+//         userId: userId,
+//         txType: "Adminfunding",
+//         txAmount: amount,
+//         txRef: txId,
+//         status: "Failed",
+//       });
+//       await newTransactionFailed.save();
+//     }
+
+//     return res
+//       .status(500)
+//       .json({ msg: "Internal Server Error", error: error.message });
+//   }
+// });
+
+
+
+
+
+
+
+// app.put("/funduser", async (req, res) => {
+//   const { amount, email, txId } = req.body;
+
+//   // Validate request body
+//   if (!amount || !email || !txId) {
+//     console.error("Missing required fields");
+//     return res.status(400).json({ msg: "Missing required fields" });
+//   }
+
+//   try {
+//     // Fetch user information
+//     const user = await userModel.findOne({ email: email });
+//     if (!user) {
+//       console.error("User not found");
+//       return res.status(404).json({ msg: "User not found" });
+//     }
+
+//     const userId = user._id;
+
+//     // Update userWallet balance
+//     const updatedWallet = await userWallet.findOneAndUpdate(
+//       { userId: userId },
+//       { $inc: { balance: Number(amount) } },
+//       { new: true }
+//     );
+
+//     if (!updatedWallet) {
+//       console.error("User wallet not found");
+//       // Record failed transaction
+//       const newTransactionFailed = new TxModel({
+//         userId: userId,
+//         txType: "Adminfunding",
+//         txAmount: amount,
+//         txRef: txId,
+//         status: "Failed",
+//       });
+
+//       await newTransactionFailed.save()
+//         .then(() => console.log("Failed transaction recorded"))
+//         .catch(err => console.error("Failed to record transaction:", err));
+
+//       return res.status(404).json({ msg: "User wallet not found" });
+//     }
+       
+//     console.log("Wallet updated:", updatedWallet);
+
+//     // Record the transaction
+//     const newTransaction = new TxModel({
+//       userId: userId,
+//       txType: "Adminfunding",
+//       txAmount: amount,
+//       txRef: txId,
+//       status: "success",
+//     });
+
+//     const savedTransaction = await newTransaction.save();
+
+//     console.log("Transaction recorded:", savedTransaction);
+
+//     return res.status(200).json({ msg: updatedWallet, mystatus: "success" });
+//   } catch (error) {
+//     console.error("Error:", error);
+
+//     if (req.body.email) {
+//       // Record failed transaction if userId is available
+//       const newTransactionFailed = new TxModel({
+//         userId: req.body.email,
+//         txType: "Adminfunding",
+//         txAmount: amount,
+//         txRef: txId,
+//         status: "Failed",
+//       });
+
+//       await newTransactionFailed.save()
+//         .then(() => console.log("Failed transaction recorded"))
+//         .catch(err => console.error("Failed to record transaction:", err));
+//     }
+
+//     return res.status(500).json({ msg: "Internal Server Error", error: error.message });
+//   }
+// });
+
+app.put("/funduser", async (req, res) => {
+  const { email, amount, txId, adminEmail } = req.body;
+
+  // console.log(req.body);
+  // return ;
+  // Check if user is authorized (superadmin or admin
+
+  try {
+  
+    // const admin = await AdminModel.findOne({ email:adminEmail }); 
+    // if (!admin || (admin.role !== 'admin' || admin.role !== 'superadmin')) {
+    //   return res.status(403).json({ msg: "Unauthorized access" });
+    // }   
+ 
+  
+    // Find user by email
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const userId = user._id; 
+
+    // Update userWallet balance
+    const updatedWallet = await userWallet.findOneAndUpdate(
+      { userId: userId },
+      { $inc: { balance: Number(amount) } },
+      { new: true }
+    );
+
+    if (!updatedWallet) {
+      return res.status(404).json({ msg: "User wallet not found" });
+    }
+
+    // Record the transaction (Assuming success initially)
+    
+
+    // Attempt to save the transaction 
+    try {
+      new TxModel({
+        userId: userId,
+        txType: "Adminfunding",
+        txAmount: amount,
+        txRef: txId,
+        status: "success",
+      }).save()
+        .then( resp =>{
+          console.info("saving transaction:", resp);
+        })
+    
+    } catch (error) {
+      // If saving transaction fails, record a failed transaction
+      new TxModel({
+        userId: userId,
+        txType: "Adminfunding",
+        txAmount: amount,
+        txRef: txId,
+        status: "Failed",
+      }).save();
+      console.error("Error saving transaction:", error);
+    }
+
+    return res.status(200).json({ msg: updatedWallet, mystatus: "success" });
+  } catch (error) {
+    console.error("Error funding user:", error);
+    return res.status(500).json({ msg: "Internal Server Error", error: error.message });
+  }
+});
+
+
+
+app.get("/balance", (req, res) => {
+  axios
+    .get(
+      "https://mobileairtimeng.com/httpapi/balance?userid=08139240318&pass=1bfa9b0533e929b4c4279&jsn=json"
+    )
+    .then((response) => {
+      console.log(response.data);
+
+      // Check for conditions before sending the response
+      if (!response.data.code) {
+        return res.status(400).json(response.data);
+      } else {
+        return res.status(200).json(response.data);
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching balance:", error);
+      res.status(500).json({ msg: "Internal Server Error" });
+    });
+});
+
+
+
+
+// app.get("/topupuser", (req, res) => {
+//   const service = {
+//     15: "MTN VTU",
+//     6: "GLO",
+//     1: "Airtel",
+//     2: "9Mobile",
+//   };
+
+//   const { network, amount, phone, txRef, userId } = req.query;
+//   console.log(network, amount, phone, txRef);
+
+//   userModel.findOne({ _id: userId }).then((user) => {
+//     const topupUrl = `https://mobileairtimeng.com/httpapi/?userid=${process.env.RECHARGE_API_PHONE}&pass=${process.env.RECHARGE_APIKEY}&network=${network}&phone=${phone}&amt=${amount}&user_ref=${txRef}&jsn=json`;
+
+//     console.log(process.env.RECHARGE_API_PHONE, process.env.RECHARGE_APIKEY);
+
+//     axios
+//       .get(topupUrl)
+//       .then((response) => {
+//         console.log(response.data);
+//         if (
+//           response.data.code == 100 &&
+//           response.data.message == "Recharge successful"
+//         ) {
+//           new TopUpModel({
+//             senderPhone: user.phone,
+//             receiverPhone: phone,
+//             amount: amount,
+//             txref: txRef,
+//             Network: service[network],
+//             status: "success",
+//           }).save();
+
+//           new TxModel({
+//             userId: userId,
+//             txType: "Admintopup",
+//             txAmount: amount,
+//             txRef: txRef,
+//             status: "success",
+//           }).save();
+//           res.status(200).json({ msg: "success" });
+//         } else {
+//           res.status(200).json(response.data);
+//           new TopUpModel({
+//             senderPhone: user.phone,
+//             receiverPhone: phone,
+//             amount: amount,
+//             txref: txRef,
+//             Network: service[network],
+//             status: "Failed",
+//           }).save();
+
+//           new TxModel({
+//             userId: userId,
+//             txType: "Admintopup",
+//             txAmount: amount,
+//             txRef: txRef,
+//             status: "Failed",
+//           }).save();
+//         }
+//       })
+//       .catch((error) => {
+//         console.error("Error: " + error.message);
+//       });
+//   });
+// });
+
+// Route to get total top-up
+
+
+app.get("/topupuser", async (req, res) => {
   const service = {
     15: "MTN VTU",
     6: "GLO",
@@ -491,178 +822,140 @@ app.get("/Adtopup", (req, res) => {
   const { network, amount, phone, txRef, userId } = req.query;
   console.log(network, amount, phone, txRef);
 
-  userModel.findOne({ _id: userId }).then((user) => {
-    const AdtopupUrl = `https://mobileairtimeng.com/httpapi/?userid=${process.env.RECHARGE_API_PHONE}&pass=${process.env.RECHARGE_APIKEY}&network=${network}&phone=${phone}&amt=${amount}&user_ref=${txRef}&jsn=json`;
-
-    console.log(process.env.RECHARGE_API_PHONE, process.env.RECHARGE_APIKEY);
-
-    axios
-      .get(AdtopupUrl)
-      .then((response) => {
-        console.log(response.data);
-        if (
-          (response.data.code == 100 &&
-            response.data.message == "Recharge successful") ||
-          2000
-        ) {
-          new AdminTopUpModel({
-            senderPhone: user.phone,
-            receiverPhone: phone,
-            amount: amount,
-            txref: txRef,
-            Network: service[network],
-            status: "Success",
-          }).save();
-
-          new AdminTxModel({
-            userId: userId,
-            txType: "Admintopup",
-            txAmount: amount,
-            txRef: txRef,
-            status: "Success",
-          }).save();
-          res.status(200).json({ msg: "success" });
-        } else {
-          res.status(200).json(response.data);
-
-          new AdminTopUpModel({
-            senderPhone: user.phone,
-            receiverPhone: phone,
-            amount: amount,
-            txref: txRef,
-            Network: service[network],
-            status: "Failed",
-          }).save();
-
-          new AdminTxModel({
-            userId: userId,
-            txType: "Admintopup",
-            txAmount: amount,
-            txRef: txRef,
-            status: "Failed",
-          }).save();
-        }
-      })
-      .catch((error) => {
-        console.error("Error: " + error.message);
-      });
-  });
-}); 
-
-
-// Route to get wallet balance
-app.get('/balance', (req, res) => {
-   axios.get('https://mobileairtimeng.com/httpapi/balance?userid=08139240318&pass=1bfa9b0533e929b4c4279&jsn=json')
-   .then( response =>{
-    console.log(response.data);
-    if(!response.data.code) return res.status(400).json(response.data);
-    res.status(200).json(response.data);
-   }).catch( er => console.log(er) ) 
- 
-});
-
-// Route to get total top-up
-app.get("/AdminTotalTopupup", (req, res) => {
-  const { userId } = req.query;
-
-  AdminTxModel.find({ userId: userId, txType: "Admintopup" })
-    .then((response) => {
-      res.status(200).json({ result: response });
-    })
-    .catch((err) => {
-      console.error("Error fetching total top-up:", err);
-      res.status(500).json({ error: "An error occurred while fetching total top-up." });
-    });
-});
-
-// Admin fund user account
-app.put("/funduser", async (req, res) => {
-  const { amount, email, txId} = req.body;
-
   try {
-    // Find user by email
-    const user = await userModel.findOne({ email: email });
+    // Validate userId existence
+    if (!userId) {
+      return res.status(400).json({ msg: "userId parameter is required" });
+    }
 
+    // Fetch user information
+    const user = await userModel.findOne({ _id: userId });
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    const userId = user._id;
+    const topupUrl = `https://mobileairtimeng.com/httpapi/?userid=${process.env.RECHARGE_API_PHONE}&pass=${process.env.RECHARGE_APIKEY}&network=${network}&phone=${phone}&amt=${amount}&user_ref=${txRef}&jsn=json`;
 
-    // Find the admin user by role
-    const adminUser = await AdminModel.findOne({
-      $or: [{ role: 'admin' }, { role: 'superadmin' }]
-    });
+    console.log(process.env.RECHARGE_API_PHONE, process.env.RECHARGE_APIKEY);
 
-    if (!adminUser) {
-      return res.status(500).json({ msg: "Admin user not found" });
-    }
+    // Make API call to recharge service
+    const response = await axios.get(topupUrl);
+    console.log(response.data);
 
-    const adminUserId = adminUser._id;
-
-    const flw = new Flutterwave(process.env.FLW_PUB_KEY, process.env.FLW_SEC_KEY);
-    const payload = { id: txId };
-
-    // Verify transaction with Flutterwave
-    const resData = await flw.Transaction.verify(payload);
-
-    if (resData.data.status === "successful") {
-      // Update user wallet balance
-      const updatedUserWallet = await WalletModel.findOneAndUpdate(
-        { userId: userId },
-        { $inc: { balance: Number(amount) } },
-        { new: true }
-      );
-
-      // Update admin wallet balance
-      const updatedAdminWallet = await AdminWallet.findOneAndUpdate(
-        { userId: adminUserId },
-        { $inc: { balance: Number(amount) } },
-        { new: true }
-      );
-
-      if (updatedUserWallet && updatedAdminWallet) {
-        // Record the transaction in user transaction history
-        await new TxModel({
-          email: email,
+    // Handle response from recharge service
+    if (response.data.code === 100 && response.data.message === "Recharge successful") {
+      // Record successful top-up in TopUpModel and TxModel
+      await Promise.all([
+        new TopUpModel({
+          senderPhone: user.phone,
+          receiverPhone: phone,
+          amount: amount,
+          txref: txRef,
+          Network: service[network],
+          status: "success",
+        }).save(),
+        new TxModel({
           userId: userId,
-          txType: "funding",
+          txType: "Admintopup",
           txAmount: amount,
-          txRef: txId,
-          txId: txId,
-          status: "Success",
-        }).save();
+          txRef: txRef,
+          status: "success",
+        }).save()
+      ]);
 
-        // Record the transaction in admin transaction history
-        await new AdminTxModel({
-          userId: adminUserId,
-          txType: "Adminfunding",
-          txAmount: amount,
-          txRef: txId,
-          status: "Success",
-        }).save();
-
-        return res.status(200).json({
-          userWallet: updatedUserWallet,
-          adminWallet: updatedAdminWallet,
-          status: "Success"
-        });
-      } else {
-        return res.status(500).json({ msg: "Failed to update wallet balances" });
-      }
+      return res.status(200).json({ msg: "success" });
     } else {
-      return res.status(400).json({ msg: "Transaction verification failed", data: resData });
+      // Record failed top-up in TopUpModel and TxModel
+      await Promise.all([
+        new TopUpModel({
+          senderPhone: user.phone,
+          receiverPhone: phone,
+          amount: amount,
+          txref: txRef,
+          Network: service[network],
+          status: "Failed",
+        }).save(),
+        new TxModel({
+          userId: userId,
+          txType: "Admintopup",
+          txAmount: amount,
+          txRef: txRef,
+          status: "Failed",
+        }).save()
+      ]);
+
+      return res.status(200).json(response.data);
     }
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ msg: "Internal server error", error: error.message });
+    console.error("Error: " + error.message);
+    return res.status(500).json({ msg: "Internal Server Error" });
   }
 });
 
 
 
+app.get("/AdminTotalTopupup", async (req, res) => {
+  const { userId } = req.query;
+
+  try {
+    if (!userId) {
+      return res.status(400).json({ msg: "userId parameter is required" });
+    }
+
+    // Find transactions where admin performed top-up for the user
+    const adminTopUpTransactions = await TxModel.find({ userId: userId, txType: "Admintopup" });
+
+    if (!adminTopUpTransactions || adminTopUpTransactions.length === 0) {
+      return res.status(404).json({ msg: "No admin top-up transactions found for the user" });
+    }
+
+    res.status(200).json({ result: adminTopUpTransactions });
+  } catch (error) {
+    console.error("Error fetching admin top-up transactions:", error);
+    res.status(500).json({ msg: "Internal Server Error", error: error.message });
+  }
+});
+
+// app.get("/AdminTotalTopupup", (req, res) => {
+//   const { userId } = req.query;
+
+//   TxModel.find({ userId: userId, txType: "Admintopup" }).then((response) => {
+//     res.status(200).json({ result: response });
+//   });
+// });
+
+
+app.get("/TotalAdminFunds", async (req, res) => {
+  const { userId } = req.query;
+
+  try {
+    if (!userId) {
+      return res.status(400).json({ msg: "Missing userId parameter" });
+    }
+
+    // Find transactions where funds were administered by admin for the user
+    const adminFundsTransactions = await TxModel.find({ userId: userId, txType: "Adminfunding" });
+
+    if (!adminFundsTransactions || adminFundsTransactions.length === 0) {
+      return res.status(404).json({ msg: "No admin funding transactions found for the user" });
+    }
+
+    res.status(200).json({ result: adminFundsTransactions });
+  } catch (error) {
+    console.error("Error fetching admin funds transactions:", error);
+    res.status(500).json({ msg: "Internal Server Error", error: error.message });
+  }
+});
+
+// app.get("/TotalAdminFunds", (req, res) => {
+//   const { userId } = req.query;
+
+//   TxModel.find({ userId: userId, txType: "Adminfunding" }).then((response) => {
+//     res.status(200).json({ result: response });
+//   });
+// });
+
 app.post("/Admin", async (req, res) => {
-  const AdminModel = require("./models/AdminModel.js");
   const { name, email, phoneNumber, password, role } = req.body;
   const hashPassword = (password) => {
     return new Promise((resolve, reject) => {
@@ -670,7 +963,7 @@ app.post("/Admin", async (req, res) => {
         if (err) reject(err);
         resolve(hash);
       });
-    });  
+    });
   };
   try {
     // Hash the password
@@ -690,86 +983,9 @@ app.post("/Admin", async (req, res) => {
     console.error("Error adding admin:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
-});
+});   
 
-// GET route to fetch all admins
-app.get("/alladmin", async (req, res) => {
-  try {
-    const admins = await AdminModel.find();
-    res.status(200).json(admins);
-  } catch (error) {
-    console.error("Error fetching admins:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-          
-app.post("/adminlogin", (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ msg: "Email and password are required" });
-  }
-
-  AdminModel.findOne({ email: email })
-    .then((user) => {
-      if (!user) {   
-        console.log("User not found for email:", email); // Added logging
-        return res.status(404).json({ msg: "User not found" });
-      }   
-  
-      bcrypt.compare(password, user.password, function (err, result) {
-        if (err) {
-          console.error("Error comparing passwords:", err); // Added logging
-          return res.status(500).json({ msg: "Error comparing passwords" });
-        }
-     
-        if (result === true) {
-          // Login successful, send user details including role in response
-          return res.status(200).json({
-            msg: "Login successful",
-            user: {
-              email: user.email,
-              role: user.role,
-            },
-          });     
-        } else {  
-          // Invalid password
-          return res.status(401).json({ msg: "Invalid password" });
-        }
-      });
-    })
-    .catch((err) => {
-      console.error("Database error:", err); // Added logging
-      return res.status(500).json({ msg: "Database error", error: err });
-    });
-});
-
-app.post("/AdminProfile", (req, res) => {
-  const AdminModel = require("./models/AdminModel.js");
-  const bcrypt = require("bcrypt");
-
-  const { oldPassword, newPassword, confirmPassword, id } = req.body;
-
-  if (oldPassword === newPassword || newPassword !== confirmPassword) {
-    return res.json({ msg: "password error" });
-  } else {
-    bcrypt
-      .hash(newPassword, 10)
-      .then((hash) => {
-        AdminModel
-          .findByIdAndUpdate(id, { password: hash })
-          .then(() => res.json({ status: "success" })) // No need to send user data back, just status
-          .catch((err) => res.json({ status: err.message })); // Sending error message
-      })
-      .catch((err) => res.json({ status: err.message }));
-  }
-});
-      
 app.listen(port, () => {
   console.log(`app listening on port ${port}`);
 });
 
-//nodemon means node monitor to run that index.js or to monitor changes in the database
-//CRUD operation MEANS CREATE READ UPDATE DELETE
-// endpoint is an individual resource
-//an API can contain many endpoints

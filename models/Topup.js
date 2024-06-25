@@ -32,7 +32,7 @@ const TopupSchema = new Schema({
    
     status: {
       type: String,
-      enum:['Failed','InProgress','Success'],
+      enum:['Failed','InProgress','success'],
       required: true,
     },
  

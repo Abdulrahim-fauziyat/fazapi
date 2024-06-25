@@ -10,7 +10,7 @@ const TxSchema = new Schema({
   },
   txType: {
     type: String,
-    enum:['funding','topup'],
+    enum:['funding','topup','Adminfunding','Admintopup'],
     required: true,
   },
   txAmount: {
@@ -25,7 +25,7 @@ const TxSchema = new Schema({
  
   status: {
     type: String,
-    enum:['Failed','InProgress','Success'],
+    enum:['Failed','InProgress','success'],
     required: true,
   },
 

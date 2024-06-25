@@ -13,20 +13,20 @@ const adminTopupSchema = new Schema({
   amount: {
     type: Number,
     required: true,
-    min: 0, // Example: Minimum value for the amount
+    min: 0, 
   },
   txref: {
-    type: String, // Changed to string for flexibility
+    type: String,
     required: true,
   },
-  network: { // Changed to lowercase for consistency
+  network: {
     type: String,
     required: true,
   },
   status: {
     type: String,
-    enum: ['Failed', 'InProgress', 'Success'],
-    default: 'InProgress', // Example: Default value for status
+    enum: ['Failed', 'InProgress', 'Success'], 
+    default: 'InProgress',
     required: true,
   },
 });

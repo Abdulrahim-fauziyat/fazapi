@@ -9,7 +9,7 @@ const AdminTxSchema = new Schema({
   },
   txType: {
     type: String,
-    enum: ['Adminfunding'], // Consider adding more types if needed
+    enum: ['Adminfunding','Admintopup'], // Consider adding more types if needed
     required: true,
   },
   txAmount: {
