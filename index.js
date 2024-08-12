@@ -99,6 +99,31 @@ app.post("/login", (req, res) => {
 });
 
 
+app.post('/support', (req, res) => {
+  const { subject, message } = req.body;
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: user.email,
+      pass: "frrg okng akrl xbam",
+    },
+  });    
+
+  const mailOptions = {
+    from: user.email,
+    to: "omoteabdulrahimfauziyat@gmail.com",
+    subject: `Support Ticket: ${subject}`,
+    text: message,
+  };
+ 
+  
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      return res.status(500).send('Failed to send email');
+    }
+    res.status(200).send('Email sent');
+  });
+});
 
 
 
@@ -184,7 +209,7 @@ app.post("/dashboard/profile", (req, res) => {
       .catch((err) => res.json({ status: err.message }));
   }
 });
-
+   
 app.get("/users", (req, res) => {
   const userModel = require("./models/UserModel.js");
   userModel.find().then((user) => {
@@ -491,16 +516,10 @@ app.post("/AdminProfile", (req, res) => {
 app.put("/funduser", async (req, res) => {
   const { email, amount, txId, adminEmail } = req.body;
 
-  // console.log(req.body);
-  // return ;
-  // Check if user is authorized (superadmin or admin
+
 
   try {
-  
-    // const admin = await AdminModel.findOne({ email:adminEmail }); 
-    // if (!admin || (admin.role !== 'admin' || admin.role !== 'superadmin')) {
-    //   return res.status(403).json({ msg: "Unauthorized access" });
-    // }   
+     
  
   
     // Find user by email
@@ -576,76 +595,7 @@ app.get("/balance", (req, res) => {
       res.status(500).json({ msg: "Internal Server Error" });
     });
 });
-        
-// app.get("/topupuser", (req, res) => {
-//   const service = {
-//     15: "MTN VTU",
-//     6: "GLO",
-//     1: "Airtel",
-//     2: "9Mobile",
-//   };
-
-//   const { network, amount, phone, txRef, userId } = req.query;
-//   console.log(network, amount, phone, txRef);
-
-//   userModel.findOne({ _id: userId }).then((user) => {
-//     const topupUrl = `https://mobileairtimeng.com/httpapi/?userid=${process.env.RECHARGE_API_PHONE}&pass=${process.env.RECHARGE_APIKEY}&network=${network}&phone=${phone}&amt=${amount}&user_ref=${txRef}&jsn=json`;
-
-//     console.log(process.env.RECHARGE_API_PHONE, process.env.RECHARGE_APIKEY);
-
-//     axios
-//       .get(topupUrl)
-//       .then((response) => {
-//         console.log(response.data);
-//         if (
-//           response.data.code == 100 &&
-//           response.data.message == "Recharge successful"
-//         ) {
-//           new TopUpModel({
-//             senderPhone: user.phone,
-//             receiverPhone: phone,
-//             amount: amount,
-//             txref: txRef,
-//             Network: service[network],
-//             status: "success",
-//           }).save();
-
-//           new TxModel({
-//             userId: userId,
-//             txType: "Admintopup",
-//             txAmount: amount,
-//             txRef: txRef,
-//             status: "success",
-//           }).save();
-//           res.status(200).json({ msg: "success" });
-//         } else {
-//           res.status(200).json(response.data);
-//           new TopUpModel({
-//             senderPhone: user.phone,
-//             receiverPhone: phone,
-//             amount: amount,
-//             txref: txRef,
-//             Network: service[network],
-//             status: "Failed",
-//           }).save();
-
-//           new TxModel({
-//             userId: userId,
-//             txType: "Admintopup",
-//             txAmount: amount,
-//             txRef: txRef,
-//             status: "Failed",
-//           }).save();
-//         }
-//       })
-//       .catch((error) => {
-//         console.error("Error: " + error.message);
-//       });
-//   });
-// });
-
-// Route to get total top-up
-
+ 
 
 app.get("/topupuser", async (req, res) => {
   const service = {
